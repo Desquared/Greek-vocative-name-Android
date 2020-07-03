@@ -1,0 +1,3 @@
+rootProject.name='GreekVocativeName'
+include ':app'
+include ':vocativename'
