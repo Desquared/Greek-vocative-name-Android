@@ -32,7 +32,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun changeName() {
-        textView.text = "Γεια σου "+VocativeUtils.getVocativeName(editText.text.toString())
+        textView.text = getString(R.string.hello_name,
+            VocativeUtils.getVocativeName(editText.text.toString()))
     }
 
 }
