@@ -9,11 +9,29 @@ class VocativeUtils {
                 return ""
             }
 
+            //Known Exceptions
+            if (name.equals("Στέλιος")) {
+                return "Στέλιο"
+            }
+            if (name.equals("Δημητρός")) {
+                return "Δημητρό"
+            }
+            if (name.equals("Μανολιός")) {
+                return "Μανολιό"
+            }
+            if (name.equals("Μανωλιός")) {
+                return "Μανωλιό"
+            }
+            //not an exception but only way to have A with tono easily
+            if (name.equals("Άννα")) {
+                return "Άννα"
+            }
             var rawText = name
             var res = ""
 
             rawText = rawText!!.toLowerCase()
             rawText = rawText.substring(0, 1).toUpperCase() + rawText.substring(1)
+
             var sylabusCount = 0
             var tonosPoint = -1
             if (rawText.length > 2) {
@@ -48,7 +66,11 @@ class VocativeUtils {
                         )
                     ) {
                         //το ος γίνεται ε
-                        rawText.substring(0, rawText.length - 2) + "ε"
+                        if(rawText[rawText.length - 2] == 'ό'){
+                            rawText.substring(0, rawText.length - 2) + "έ"
+                        } else {
+                            rawText.substring(0, rawText.length - 2) + "ε"
+                        }
                     } else {
                         //το ος γίνεται ο
                         rawText.substring(0, rawText.length - 2) + "ο"
