@@ -4,7 +4,7 @@ class VocativeUtils {
 
     companion object {
 
-        fun getVocativeName(name: String): String {
+        fun getVocativeName(name: String?): String {
             if (isNullOrEmpty(name)) {
                 return ""
             }
@@ -12,7 +12,7 @@ class VocativeUtils {
             var rawText = name
             var res = ""
 
-            rawText = rawText.toLowerCase()
+            rawText = rawText!!.toLowerCase()
             rawText = rawText.substring(0, 1).toUpperCase() + rawText.substring(1)
             var sylabusCount = 0
             var tonosPoint = -1
