@@ -16,7 +16,7 @@ allprojects {
 	}
 
 dependencies {
-	        implementation 'com.github.Desquared:Greek-vocative-name-Android:version'
+	        implementation 'com.github.Desquared:Greek-vocative-name-Android:1.0.2'
 	}
 ```
 
@@ -32,7 +32,7 @@ dependencies {
 	<dependency>
 	    <groupId>com.github.Desquared</groupId>
 	    <artifactId>Greek-vocative-name-Android</artifactId>
-	    <version>version</version>
+	    <version>1.0.2</version>
 	</dependency>
 
 
@@ -42,10 +42,10 @@ dependencies {
 ```kotlin
 import gr.desquared.vocativename.VocativeUtils
 
-Log.d("Vocative", VocativeUtils.getVocativeName("Χαράλαμπος"))) // Χαράλαμπε
-Log.d("Vocative", VocativeUtils.getVocativeName("ΜΑΡΙΑ"))) // Μαρια
-Log.d("Vocative", VocativeUtils.getVocativeName("αλέξανδρος"))) // Αλέξανδρε
-Log.d("Vocative", VocativeUtils.getVocativeName("john"))) // John
+Log.d("Vocative", VocativeUtils.getVocativeName("Χαράλαμπος")) // Χαράλαμπε
+Log.d("Vocative", VocativeUtils.getVocativeName("ΜΑΡΙΑ")) // Μαρια
+Log.d("Vocative", VocativeUtils.getVocativeName("αλέξανδρος")) // Αλέξανδρε
+Log.d("Vocative", VocativeUtils.getVocativeName("john")) // John
 ```
 
 ## License
