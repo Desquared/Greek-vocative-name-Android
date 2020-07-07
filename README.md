@@ -2,6 +2,10 @@
 
 Greek vocative name for Android is a Kotlin library for transforming Greek name to its vocative case/form. It has no effect on English or other languages.
 
+## Requirements
+
+* Minimum Android API 19+.
+
 ## Installation
 
 Use gradle or maven
