@@ -13,34 +13,33 @@ Use gradle or maven
 ### gradle
 ```bash
 allprojects {
-		repositories {
-			...
-			maven { url 'https://jitpack.io' }
-		}
-	}
+    repositories {
+        ...
+        maven { url 'https://jitpack.io' }
+   }
+}
 
 dependencies {
-	        implementation 'com.github.Desquared:Greek-vocative-name-Android:1.0.2'
-	}
+    implementation 'com.github.Desquared:Greek-vocative-name-Android:1.0.2'
+}
 ```
 
 ### maven
 ```bash
 <repositories>
-		<repository>
-		    <id>jitpack.io</id>
-		    <url>https://jitpack.io</url>
-		</repository>
-	</repositories>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+</repositories>
 
-	<dependency>
-	    <groupId>com.github.Desquared</groupId>
-	    <artifactId>Greek-vocative-name-Android</artifactId>
-	    <version>1.0.2</version>
-	</dependency>
-
-
+<dependency>
+    <groupId>com.github.Desquared</groupId>
+    <artifactId>Greek-vocative-name-Android</artifactId>
+    <version>1.0.2</version>
+</dependency>
 ```
+
 ## Usage
 
 ```kotlin
