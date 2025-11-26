@@ -1,0 +1,69 @@
+name: PR Title Labeler
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  title-label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Label PRs based on Conventional Commit titles
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+            const title = pr.title.toLowerCase();
+
+            const mappings = {
+              "feat":     { label: "feature",   color: "2ECC71", desc: "New feature" },
+              "fix":      { label: "fix",       color: "E74C3C", desc: "Bug fix" },
+              "docs":     { label: "docs",      color: "3498DB", desc: "Documentation change" },
+              "chore":    { label: "chore",     color: "95A5A6", desc: "Chore / maintenance" },
+              "refactor": { label: "refactor",  color: "9B59B6", desc: "Code refactor" },
+              "test":     { label: "test",      color: "F1C40F", desc: "Tests" },
+              "perf":     { label: "perf",      color: "E67E22", desc: "Performance improvement" },
+              "ci":       { label: "ci",        color: "1ABC9C", desc: "CI/CD changes" }
+            };
+
+            // Match prefix with optional scope, e.g. "ci:" or "ci(scope):"
+            let match = Object.keys(mappings).find(prefix =>
+              new RegExp(`^${prefix}(\\([^)]*\\))?:`).test(title)
+            );
+
+            if (!match) {
+              console.log(`⚠️ No conventional commit prefix found in title: "${title}"`);
+              return;
+            }
+
+            const { label, color, desc } = mappings[match];
+
+            // Ensure label exists
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: label });
+              await github.rest.issues.updateLabel({ owner, repo, name: label, color, description: desc });
+              console.log(`✅ Updated label ${label}`);
+            } catch {
+              await github.rest.issues.createLabel({ owner, repo, name: label, color, description: desc });
+              console.log(`✅ Created label ${label}`);
+            }
+
+            // Remove other labels from this set
+            const allLabels = Object.values(mappings).map(m => m.label);
+            for (const l of allLabels) {
+              if (pr.labels.map(x => x.name).includes(l) && l !== label) {
+                await github.rest.issues.removeLabel({ owner, repo, issue_number: pr.number, name: l })
+                  .catch(() => {});
+                console.log(`Removed old label ${l}`);
+              }
+            }
+
+            // Add new label if missing
+            if (!pr.labels.map(x => x.name).includes(label)) {
+              await github.rest.issues.addLabels({ owner, repo, issue_number: pr.number, labels: [label] });
+              console.log(`PR #${pr.number}: added ${label}`);
+            } else {
+              console.log(`PR #${pr.number}: already has ${label}`);
+            }

@@ -1,0 +1,306 @@
+name: PR Size Labeler
+
+on:
+  pull_request:
+    types: [opened, synchronize, edited]
+
+jobs:
+  size-label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Skip for draft PRs
+        if: github.event.pull_request.draft == true
+        run: echo "⏭️ Draft PR detected. Skipping labeling and commenting."
+
+      - name: Calculate PR size
+        if: github.event.pull_request.draft == false
+        id: pr_size
+        continue-on-error: true
+        run: |
+          set +e  # Don't exit on error
+          # Get the PR files and filter out auto-generated/noise files
+          PR_NUMBER=$(jq -r '.pull_request.number' $GITHUB_EVENT_PATH)
+          
+          # Fetch PR files via API and exclude noise files
+          echo "🔍 Fetching PR files for PR #${PR_NUMBER}..."
+          
+          # First, let's check what we get from the API
+          API_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}/files")
+          
+          # Check if API response is valid JSON and not an error
+          if ! echo "$API_RESPONSE" | jq empty 2>/dev/null; then
+            echo "❌ Invalid JSON response from GitHub API:"
+            echo "$API_RESPONSE"
+            echo "size=0" >> $GITHUB_OUTPUT
+            echo "calculation_success=false" >> $GITHUB_OUTPUT
+            echo "📊 Using fallback size: 0 (API error)"
+            exit 0
+          fi
+          
+          # Debug: Show the structure of the first file to understand the format
+          echo "🔍 First file structure:"
+          echo "$API_RESPONSE" | jq '.[0] // "No files found"'
+          
+          # Debug: Show files that pass the filter
+          echo "🔍 Files that will be counted:"
+          echo "$API_RESPONSE" | jq -r '[.[] | select(type == "object") | select(has("filename") and has("additions") and has("deletions")) | {filename: .filename, size: (.additions + .deletions)}] | .[] | "\(.filename): \(.size) lines"'
+          
+          # Try to calculate size, but if jq fails for any reason, catch it
+          FILTERED_SIZE=$(echo "$API_RESPONSE" | jq -r '
+            [.[] | 
+              select(type == "object") |
+              select(has("filename") and has("additions") and has("deletions")) |
+              select((.additions | type) == "number" and (.deletions | type) == "number") |
+              select(
+                (.filename | test("\\.pbxproj$") | not) and
+                (.filename | test("^Pods/") | not) and
+                (.filename | test("\\.xcworkspace/") | not) and
+                (.filename | test("\\.xcodeproj/") | not) and
+                (.filename | test("\\.xcuserdata/") | not) and
+                (.filename | test("\\.xcshareddata/") | not) and
+                (.filename | test("\\.xcsettings$") | not) and
+                (.filename | test("\\.entitlements$") | not) and
+                ((.filename | test("Info\\.plist$")) and (.additions + .deletions) > 50 | not) and
+                ((.filename | test("\\.storyboard$")) and (.additions + .deletions) > 200 | not) and
+                (.filename | test("\\.xib$") | not) and
+                (.filename | test("\\.xcassets/") | not) and
+                (.filename | test("\\.imageset/") | not) and
+                (.filename | test("\\.appiconset/") | not) and
+                (.filename | test("\\.launchimage/") | not) and
+                (.filename | test("Localizable\\.strings$") | not) and
+                (.filename | test("\\.lproj/") | not) and
+                (.filename | test("\\.lock$") | not) and
+                (.filename | test("package-lock\\.json$") | not) and
+                (.filename | test("yarn\\.lock$") | not) and
+                (.filename | test("Podfile\\.lock$") | not) and
+                (.filename | test("\\.generated\\.(kt|swift|dart|java)$") | not) and
+                (.filename | test("/generated/") | not) and
+                (.filename | test("/build/") | not) and
+                ((.filename | test("\\.gradle(\\.kts)?$")) and (.additions + .deletions) > 100 | not) and
+                (.filename | test("\\.iml$") | not) and
+                (.filename | test("local\\.properties$") | not) and
+                ((.filename | test("gradle\\.properties$")) and (.additions + .deletions) > 50 | not) and
+                (.filename | test("gradle/wrapper/") | not) and
+                (.filename | test("\\.idea/") | not) and
+                (.filename | test("R\\.java$") | not) and
+                (.filename | test("BuildConfig\\.java$") | not) and
+                ((.filename | test("Manifest\\.xml$")) and (.additions + .deletions) > 100 | not) and
+                (.filename | test("/proguard-rules\\.pro$") | not) and
+                (.filename | test("\\.svg$") | not) and
+                (.filename | test("\\.(png|jpg|jpeg|gif|webp|ico)$") | not) and
+                (.filename | test("\\.(mp4|mov|avi|webm)$") | not) and
+                (.filename | test("\\.(ttf|otf|woff|woff2|eot)$") | not) and
+                (.filename | test("\\.(pdf|doc|docx|ppt|pptx)$") | not) and
+                (.filename | test("\\.strings$") | not) and
+                (.filename | test("strings\\.xml$") | not) and
+                (.filename | test("colors\\.xml$") | not) and
+                (.filename | test("dimens\\.xml$") | not) and
+                (.filename | test("styles\\.xml$") | not) and
+                (.filename | test("attrs\\.xml$") | not) and
+                (.filename | test("/res/drawable/.*\\.xml$") | not) and
+                ((.filename | test("/res/layout/.*\\.xml$")) and (.additions + .deletions) > 150 | not) and
+                (.filename | test("/res/menu/.*\\.xml$") | not) and
+                (.filename | test("/res/anim/.*\\.xml$") | not) and
+                (.filename | test("/res/animator/.*\\.xml$") | not) and
+                (.filename | test("\\.aidl$") | not) and
+                (.filename | test("debug\\.keystore$") | not) and
+                (.filename | test("keystore\\.jks$") | not) and
+                (.filename | test("google-services\\.json$") | not) and
+                (.filename | test("GoogleService-Info\\.plist$") | not) and
+                (.filename | test("\\.(cer|p12|mobileprovision)$") | not) and
+                (.filename | test("changelog.*\\.(md|txt)$") | not) and
+                (.filename | test("release.*notes.*\\.(md|txt)$") | not) and
+                (.filename | test("\\.(md|txt)$") | not) and
+                ((.filename | test("\\.(csv|json|xml)$")) and (.additions + .deletions) > 300 | not) and
+                (.filename | test("test.*data") | not) and
+                (.filename | test("mock.*data") | not) and
+                (.filename | test("fixture") | not) and
+                (.filename | test("\\.snap$") | not) and
+                (.filename | test("__snapshots__/") | not) and
+                (.filename | test("screenshot.*\\.(png|jpg)$") | not)
+              ) |
+              .additions + .deletions
+            ] | add // 0' 2>/dev/null || echo "0")
+          
+          # Debug: Show what was actually counted after filtering
+          echo "🔍 Filtered result: $FILTERED_SIZE"
+          
+          # Validate the result
+          if [[ "$FILTERED_SIZE" =~ ^[0-9]+$ ]]; then
+            echo "size=$FILTERED_SIZE" >> "$GITHUB_OUTPUT"
+            echo "calculation_success=true" >> "$GITHUB_OUTPUT"
+            echo "📊 Calculated PR size: $FILTERED_SIZE (excluding auto-generated files)"
+            echo "✅ Output variables set: size=$FILTERED_SIZE, calculation_success=true"
+          else
+            echo "❌ Invalid size calculation result: $FILTERED_SIZE"
+            echo "size=0" >> "$GITHUB_OUTPUT"
+            echo "calculation_success=false" >> "$GITHUB_OUTPUT"
+            echo "📊 Using fallback size: 0 (calculation error)"
+          fi
+          
+          # Debug: Show what was written to GITHUB_OUTPUT
+          echo "🔍 Contents of GITHUB_OUTPUT:"
+          cat "$GITHUB_OUTPUT" || echo "⚠️ Could not read GITHUB_OUTPUT"
+          
+          set -e  # Re-enable exit on error
+          exit 0  # Always exit successfully
+
+      - name: Debug - Check output variables
+        if: github.event.pull_request.draft == false
+        run: |
+          echo "🔍 Checking step outputs:"
+          echo "  calculation_success = '${{ steps.pr_size.outputs.calculation_success }}'"
+          echo "  size = '${{ steps.pr_size.outputs.size }}'"
+
+      - name: Skip labeling due to calculation error
+        if: github.event.pull_request.draft == false && steps.pr_size.outputs.calculation_success != 'true'
+        run: |
+          echo "⚠️ PR size calculation failed - skipping labeling to avoid misleading size labels"
+          echo "🔍 Check the 'Calculate PR size' step logs for debugging information"
+          echo "🔍 Debug - calculation_success value: '${{ steps.pr_size.outputs.calculation_success }}'"
+          echo "🔍 Debug - size value: '${{ steps.pr_size.outputs.size }}'"
+          echo "✅ Workflow completed successfully (PR is not blocked)"
+
+      - name: Determine label
+        if: github.event.pull_request.draft == false && steps.pr_size.outputs.calculation_success == 'true'
+        id: label
+        run: |
+          SIZE=${{ steps.pr_size.outputs.size }}
+          # Mobile-optimized thresholds for iOS/Android architectures (MVVM, MVI, TCA, Clean Architecture)
+          if   [ "$SIZE" -le 250 ];  then LABEL="size/XS"; COLOR="2ECC71"; DESC="Very small PR: Bug fixes, utils"
+          elif [ "$SIZE" -le 500 ];  then LABEL="size/S";  COLOR="27AE60"; DESC="Small PR: Single component/view"
+          elif [ "$SIZE" -le 1000 ]; then LABEL="size/M";  COLOR="F1C40F"; DESC="Medium PR: Simple feature (ViewModel + View)"
+          elif [ "$SIZE" -le 1700 ]; then LABEL="size/L";  COLOR="E67E22"; DESC="Large PR: Complete feature (MVVM/MVI flow)"
+          elif [ "$SIZE" -le 3200 ]; then LABEL="size/XL"; COLOR="D35400"; DESC="Very large PR: Complex feature (multi-layer)"
+          else LABEL="size/XXL"; COLOR="C0392B"; DESC="Huge PR: Major feature (consider splitting)"; fi
+
+          echo "label=$LABEL" >> $GITHUB_OUTPUT
+          echo "color=$COLOR" >> $GITHUB_OUTPUT
+          echo "desc=$DESC" >> $GITHUB_OUTPUT
+
+      - name: Ensure label exists (with color & description)
+        if: github.event.pull_request.draft == false && steps.pr_size.outputs.calculation_success == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const label = "${{ steps.label.outputs.label }}";
+            const color = "${{ steps.label.outputs.color }}";
+            const desc  = "${{ steps.label.outputs.desc }}";
+
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: label });
+              await github.rest.issues.updateLabel({ owner, repo, name: label, color, description: desc });
+              console.log(`✅ Updated label ${label}`);
+            } catch {
+              await github.rest.issues.createLabel({ owner, repo, name: label, color, description: desc });
+              console.log(`✅ Created label ${label}`);
+            }
+
+      - name: Remove old size labels (safe)
+        if: github.event.pull_request.draft == false && steps.pr_size.outputs.calculation_success == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request.number;
+            const currentLabel = "${{ steps.label.outputs.label }}";
+            const sizeLabels = ["size/XS","size/S","size/M","size/L","size/XL","size/XXL"];
+            
+            for (const label of sizeLabels) {
+              if (label !== currentLabel) {
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner,
+                    repo,
+                    issue_number: pr,
+                    name: label
+                  });
+                  console.log(`Removed ${label}`);
+                } catch (e) {
+                  if (e.status === 404) {
+                    console.log(`Label ${label} not present on this PR, skipping`);
+                  } else {
+                    throw e;
+                  }
+                }
+              }
+            }
+
+      - name: Add size label
+        if: github.event.pull_request.draft == false && steps.pr_size.outputs.calculation_success == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request.number;
+            const currentLabel = "${{ steps.label.outputs.label }}";
+            
+            // Check if the label is already present
+            const { data: prData } = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: pr
+            });
+            
+            const hasLabel = prData.labels.some(label => label.name === currentLabel);
+            
+            if (!hasLabel) {
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: pr,
+                labels: [currentLabel]
+              });
+              console.log(`✅ Added ${currentLabel} label`);
+            } else {
+              console.log(`ℹ️ Label ${currentLabel} already exists`);
+            }
+
+      - name: Auto-comment on oversized PRs
+        if: github.event.pull_request.draft == false && steps.pr_size.outputs.calculation_success == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+            const currentLabel = "${{ steps.label.outputs.label }}";
+            
+            // Check if this is a large PR based on the calculated label
+            const isLargePR = ["size/L", "size/XL", "size/XXL"].includes(currentLabel);
+            
+            if (isLargePR) {
+              // Check if we already have a comment about PR size
+              const comments = await github.rest.issues.listComments({
+                owner,
+                repo,
+                issue_number: pr.number
+              });
+              
+              const botComment = comments.data.find(comment => 
+                comment.user.type === 'Bot' && 
+                comment.body.includes('This PR is quite large')
+              );
+              
+              if (!botComment) {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: pr.number,
+                  body: "⚠️ This PR is quite large. Consider splitting it into smaller PRs for easier review."
+                });
+                console.log("💬 Comment added for oversized PR");
+              } else {
+                console.log("💬 Size comment already exists, skipping duplicate");
+              }
+            } else {
+              console.log("ℹ️ PR size is acceptable, no comment needed.");
+            }

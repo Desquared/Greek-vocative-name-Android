@@ -1,0 +1,20 @@
+name: Conventional PR Title Check
+
+on:
+  # Same-repo PRs (fires on pushed commits → 'synchronize', title edits → 'edited', etc.)
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+  # Forked PRs (runs with base repo token so it can comment/set status)
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+
+jobs:
+  main:
+    name: Validate PR title
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
